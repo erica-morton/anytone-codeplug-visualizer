@@ -1,10 +1,16 @@
-@import 'tailwindcss';
+@import 'tailwindcss' source(none);
 @import 'tw-animate-css';
 @import 'shadcn/tailwind.css';
 
-/* public/ is copied verbatim and uses no Tailwind classes; without this its
-   markup leaks class candidates (.card, .badge, .code ...) into the app CSS. */
-@source not '../public';
+
+/* Automatic source detection scans the whole project, so any stray file in
+   the repo root, and the verbatim-copied public/ pages, leak class candidates
+   into the shipped CSS. Name the real sources instead. */
+@source '../index.html';
+@source '../src';
+@source '../components';
+@source '../lib';
+@source '../hooks';
 
 @custom-variant dark (&:is(.dark *));
 

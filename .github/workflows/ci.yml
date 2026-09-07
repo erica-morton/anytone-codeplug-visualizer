@@ -1,0 +1,40 @@
+name: CI
+
+# Pull requests get no validation from deploy.yml, which only runs on push to
+# main. Without this, dependency PRs merge unchecked -- an oxlint minor bump
+# once removed a rule this repo configured, which broke lint and would have
+# failed the deploy after merge rather than before.
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22.13'
+          cache: npm
+
+      - run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Test
+        run: npm test
+
+      # Also runs scripts/check-public-data.mjs, the privacy guard that refuses
+      # to build unless the bundled fixture is the synthetic DEMO / 0000000 data.
+      - name: Build
+        run: npm run build

@@ -7,8 +7,7 @@
     "oxc",
     "react",
     "import",
-    "jsx-a11y",
-    "nextjs"
+    "jsx-a11y"
   ],
   "categories": {
     "correctness": "error"
@@ -22,7 +21,12 @@
     "typeAware": true,
     "typeCheck": true
   },
-  "ignorePatterns": ["out/**", "build/**", "dist/**", "coverage/**"],
+  "ignorePatterns": [
+    "out/**",
+    "build/**",
+    "dist/**",
+    "coverage/**"
+  ],
   "rules": {
     "no-array-constructor": "error",
     "no-var": "error",
@@ -33,7 +37,27 @@
     "react/display-name": "error",
     "react/jsx-no-comment-textnodes": "error",
     "react/no-unescaped-entities": "error",
-    "react/react-compiler": "error",
+    "react/purity": "error",
+    "react/immutability": "error",
+    "react/preserve-manual-memoization": "error",
+    "react/set-state-in-render": "error",
+    "react/set-state-in-effect": "error",
+    "react/static-components": "error",
+    "react/use-memo": "error",
+    "react/void-use-memo": "error",
+    "react/error-boundaries": "error",
+    "react/globals": "error",
+    "react/hooks": "error",
+    "react/refs": "error",
+    "react/syntax": "error",
+    "react/incompatible-library": "error",
+    "react/no-deriving-state-in-effects": "error",
+    "react/unsupported-syntax": "error",
+    "react/invariant": "error",
+    "react/capitalized-calls": "error",
+    "react/memo-dependencies": "error",
+    "react/no-clone-element": "error",
+    "react/no-react-children": "error",
     "react/require-render-return": "error",
     "react/rules-of-hooks": "error",
     "typescript/ban-ts-comment": "error",
