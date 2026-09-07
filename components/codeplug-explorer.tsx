@@ -536,7 +536,10 @@ export function CodeplugExplorer() {
           onValueChange={(value) => setMainView(value as MainView)}
         >
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <TabsList variant="line" className="max-w-full overflow-x-auto">
+            <TabsList
+              variant="line"
+              className="max-w-full flex-wrap justify-start gap-y-2 pb-1 group-data-horizontal/tabs:h-auto [&>[data-slot=tabs-trigger]]:h-8 [&>[data-slot=tabs-trigger]]:flex-none"
+            >
               <TabsTrigger value="channels">Zones &amp; channels</TabsTrigger>
               <TabsTrigger value="scans">Scan lists</TabsTrigger>
               <TabsTrigger value="talkgroups">DMR talkgroups</TabsTrigger>
