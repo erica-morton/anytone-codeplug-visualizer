@@ -31,6 +31,17 @@ def as_number(value: str, fallback: int) -> int:
         return fallback
 
 
+def gps_coordinate(
+    degree: str,
+    whole_minutes: str,
+    minute_hundredths: str,
+    negative: str,
+) -> float:
+    minutes = float(whole_minutes or 0) + float(minute_hundredths or 0) / 100
+    value = float(degree or 0) + minutes / 60
+    return -value if negative == "1" else value
+
+
 def existing_enrichment(output: Path) -> dict[str, dict[str, str]]:
     if not output.exists():
         return {}
@@ -61,6 +72,11 @@ def build_data(bundle: Path, output: Path, args: argparse.Namespace) -> dict[str
     radio_id_rows = (
         read_csv(bundle / "RadioIDList.CSV")
         if (bundle / "RadioIDList.CSV").is_file()
+        else []
+    )
+    gps_roaming_rows = (
+        read_csv(bundle / "GPSRoaming.CSV")
+        if (bundle / "GPSRoaming.CSV").is_file()
         else []
     )
 
@@ -156,6 +172,36 @@ def build_data(bundle: Path, output: Path, args: argparse.Namespace) -> dict[str
         }
         for index, row in enumerate(talkgroup_rows, 1)
     ]
+    zone_by_number = {zone["number"]: zone for zone in zones}
+    gps_roaming = []
+    for index, row in enumerate(gps_roaming_rows, 1):
+        if row["OnOff"] != "1":
+            continue
+        zone_index = as_number(row["Zone"], -1)
+        zone_number = zone_index + 1
+        gps_roaming.append(
+            {
+                "number": index,
+                "zoneIndex": zone_index,
+                "zoneNumber": zone_number,
+                "zoneName": zone_by_number.get(
+                    zone_number, {"name": f"Unresolved zone #{zone_number}"}
+                )["name"],
+                "latitude": gps_coordinate(
+                    row["Latitude Degree"],
+                    row["Latitude Minute"],
+                    row["Latitude Minute1"],
+                    row["North or South"],
+                ),
+                "longitude": gps_coordinate(
+                    row["Longtitude Degree"],
+                    row["Longtitude Minute"],
+                    row["Longtitude Minute1"],
+                    row["East or West"],
+                ),
+                "radiusMeters": as_number(row["Radius(Meter)"], 0),
+            }
+        )
 
     identity = radio_id_rows[0] if radio_id_rows else {}
     callsign = args.callsign or identity.get("Name") or "Sample codeplug"
@@ -174,11 +220,13 @@ def build_data(bundle: Path, output: Path, args: argparse.Namespace) -> dict[str
             "zones": len(zones),
             "scans": len(scans),
             "talkgroups": len(talkgroups),
+            "gpsRoaming": len(gps_roaming),
         },
         "channels": channels,
         "zones": zones,
         "scans": scans,
         "talkgroups": talkgroups,
+        "gpsRoaming": gps_roaming,
     }
 
 

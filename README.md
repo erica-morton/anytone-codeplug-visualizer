@@ -36,6 +36,7 @@ Use **Load CPS CSVs** and select these files together from an AnyTone CPS
 - `ScanList.CSV`
 - `TalkGroups.CSV`
 - `RadioIDList.CSV` (optional, used for the display identity)
+- `GPSRoaming.CSV` (optional, shows GPS-driven zone geofences)
 
 The files are parsed in your browser. The app does not upload the codeplug or
 send it to a server. Reloading the page discards the imported tables and
@@ -71,6 +72,8 @@ CPS CSVs**, keeping the data browser-only.
 
 - Reads CPS CSV table exports; it does not read `.rdt` or `.LST` files directly.
 - Visualizes which scan list is attached to the currently selected channel.
+- Resolves active `GPSRoaming.CSV` entries back to their destination zones
+  and displays each center and radius.
 - Does not write to a radio or mutate imported files.
 - Change notes are planning artifacts, not automatic CPS edits.
 

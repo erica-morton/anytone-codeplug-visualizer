@@ -34,10 +34,17 @@ const unresolved = [...sample.zones, ...sample.scans].flatMap((group) =>
     .filter((member) => !channelNames.has(member))
     .map((member) => `${group.name}: ${member}`),
 );
+const zoneNames = new Set(sample.zones.map((zone) => zone.name));
+const unresolvedGps = (sample.gpsRoaming ?? [])
+  .filter((entry) => !zoneNames.has(entry.zoneName))
+  .map((entry) => `GPS roaming #${entry.number}: ${entry.zoneName}`);
 
-if (unresolved.length > 0) {
+if (unresolved.length > 0 || unresolvedGps.length > 0) {
   throw new Error(
-    `Refusing to build: unresolved synthetic fixture references: ${unresolved.join(', ')}`,
+    `Refusing to build: unresolved synthetic fixture references: ${[
+      ...unresolved,
+      ...unresolvedGps,
+    ].join(', ')}`,
   );
 }
 
@@ -48,6 +55,7 @@ const expectedCounts = {
   zones: sample.zones.length,
   scans: sample.scans.length,
   talkgroups: sample.talkgroups.length,
+  gpsRoaming: sample.gpsRoaming.length,
 };
 
 if (

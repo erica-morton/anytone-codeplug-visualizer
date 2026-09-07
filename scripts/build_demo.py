@@ -101,11 +101,23 @@ data = {
         "zones": len(zones),
         "scans": len(scans),
         "talkgroups": len(talkgroups),
+        "gpsRoaming": 1,
     },
     "channels": channels,
     "zones": zones,
     "scans": scans,
     "talkgroups": talkgroups,
+    "gpsRoaming": [
+        {
+            "number": 1,
+            "zoneIndex": 1,
+            "zoneNumber": 2,
+            "zoneName": "01 LOCAL",
+            "latitude": 35.0,
+            "longitude": -98.0,
+            "radiusMeters": 25000,
+        }
+    ],
 }
 
 OUTPUT.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")

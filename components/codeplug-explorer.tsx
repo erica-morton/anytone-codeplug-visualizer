@@ -45,13 +45,14 @@ import { Textarea } from '@/components/ui/textarea';
 import {
   Channel,
   CodeplugData,
+  GpsRoamingEntry,
   ScanList,
   Talkgroup,
   codeplugFromCpsFiles,
 } from '@/lib/codeplug';
 
 type ChannelView = 'zone' | 'scan';
-type MainView = 'channels' | 'scans' | 'talkgroups' | 'changes';
+type MainView = 'channels' | 'scans' | 'talkgroups' | 'gps' | 'changes';
 type ChangeScope = 'channel' | 'zone' | 'codeplug';
 
 type ChangeNote = {
@@ -115,6 +116,7 @@ function makeChangeMarkdown(
 - Identity: ${data.identity.callsign} / DMR ID ${data.identity.dmrId}
 - Radio: ${data.radio}
 - Counts: ${data.counts.channels} channels, ${data.counts.zones} zones, ${data.counts.scans} scan lists
+- GPS roaming: ${data.counts.gpsRoaming} active geofences
 
 ## Requested changes
 
@@ -438,6 +440,9 @@ export function CodeplugExplorer() {
               <TabsTrigger value="channels">Zones &amp; channels</TabsTrigger>
               <TabsTrigger value="scans">Scan lists</TabsTrigger>
               <TabsTrigger value="talkgroups">DMR talkgroups</TabsTrigger>
+              <TabsTrigger value="gps">
+                GPS roaming ({data.gpsRoaming.length})
+              </TabsTrigger>
               <TabsTrigger value="changes">
                 Changes ({changes.length})
               </TabsTrigger>
@@ -615,6 +620,10 @@ export function CodeplugExplorer() {
             />
           </TabsContent>
 
+          <TabsContent value="gps" className="mt-4">
+            <GpsRoamingTable entries={data.gpsRoaming} />
+          </TabsContent>
+
           <TabsContent value="changes" className="mt-4">
             <Card>
               <CardHeader>
@@ -704,6 +713,79 @@ export function CodeplugExplorer() {
         </Tabs>
       </main>
     </div>
+  );
+}
+
+function GpsRoamingTable({ entries }: { entries: GpsRoamingEntry[] }) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>GPS zone switching</CardTitle>
+        <CardDescription>
+          Active geofences from GPSRoaming.CSV. Entering a circle selects its
+          normal zone; this is separate from DMR repeater roaming.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="flex items-start gap-2 rounded-lg bg-[var(--signal-amber-soft)] px-3 py-2 text-sm text-[var(--signal-amber-foreground)]">
+          <AlertTriangle
+            className="mt-0.5 size-4 shrink-0"
+            aria-hidden="true"
+          />
+          <span>
+            GPSRoaming.CSV stores the circles, but it does not prove that the
+            radio-wide GPS and GPS Roaming switches are on. Confirm those under
+            Optional Setting → GPS/Ranging in CPS.
+          </span>
+        </div>
+        {entries.length ? (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Entry</TableHead>
+                <TableHead>Destination zone</TableHead>
+                <TableHead>Center</TableHead>
+                <TableHead>Radius</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {entries.map((entry) => (
+                <TableRow key={entry.number}>
+                  <TableCell className="font-mono">#{entry.number}</TableCell>
+                  <TableCell>
+                    <span className="font-medium">{entry.zoneName}</span>
+                    <span className="ml-2 text-xs text-muted-foreground">
+                      Zone.CSV #{entry.zoneNumber}
+                    </span>
+                  </TableCell>
+                  <TableCell className="font-mono text-xs tabular-nums">
+                    {entry.latitude.toFixed(5)}, {entry.longitude.toFixed(5)}
+                  </TableCell>
+                  <TableCell className="font-mono text-xs tabular-nums">
+                    {(entry.radiusMeters / 1000).toFixed(0)} km ·{' '}
+                    {(entry.radiusMeters / 1609.344).toFixed(0)} mi
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        ) : (
+          <div className="grid min-h-48 place-items-center text-center">
+            <div>
+              <MapPinned
+                className="mx-auto mb-2 size-6 text-muted-foreground"
+                aria-hidden="true"
+              />
+              <p className="font-medium">No GPS roaming table loaded</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Select GPSRoaming.CSV with the other CPS CSV files to inspect
+                automatic zone switching.
+              </p>
+            </div>
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 

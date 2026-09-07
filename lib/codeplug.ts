@@ -56,6 +56,16 @@ export type Talkgroup = {
   callType: string;
 };
 
+export type GpsRoamingEntry = {
+  number: number;
+  zoneIndex: number;
+  zoneNumber: number;
+  zoneName: string;
+  latitude: number;
+  longitude: number;
+  radiusMeters: number;
+};
+
 export type CodeplugData = {
   identity: { callsign: string; dmrId: string };
   radio: string;
@@ -68,11 +78,13 @@ export type CodeplugData = {
     zones: number;
     scans: number;
     talkgroups: number;
+    gpsRoaming: number;
   };
   channels: Channel[];
   zones: Zone[];
   scans: ScanList[];
   talkgroups: Talkgroup[];
+  gpsRoaming: GpsRoamingEntry[];
 };
 
 type CsvRow = Record<string, string>;
@@ -143,6 +155,22 @@ function asNumber(value: string, fallback: number): number {
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
+function asFloat(value: string): number {
+  const parsed = Number.parseFloat(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function gpsCoordinate(
+  degree: string,
+  wholeMinutes: string,
+  minuteHundredths: string,
+  negative: string,
+): number {
+  const minutes = asFloat(wholeMinutes) + asFloat(minuteHundredths) / 100;
+  const value = asFloat(degree) + minutes / 60;
+  return negative === '1' ? -value : value;
+}
+
 function findFile(files: File[], expected: string): File | undefined {
   return files.find(
     (file) => file.name.toLowerCase() === expected.toLowerCase(),
@@ -179,6 +207,7 @@ export async function codeplugFromCpsFiles(
   const scanRows = rowsFor('ScanList.CSV');
   const talkgroupRows = rowsFor('TalkGroups.CSV');
   const radioIdRows = rowsFor('RadioIDList.CSV');
+  const gpsRoamingRows = rowsFor('GPSRoaming.CSV');
 
   const zones: Zone[] = zoneRows.map((row, index) => ({
     number: asNumber(row['No.'], index + 1),
@@ -247,6 +276,36 @@ export async function codeplugFromCpsFiles(
     callType: row['Call Type'],
   }));
 
+  const zoneByNumber = new Map(zones.map((zone) => [zone.number, zone]));
+  const gpsRoaming: GpsRoamingEntry[] = gpsRoamingRows
+    .map((row, index) => ({ row, index }))
+    .filter(({ row }) => row.OnOff === '1')
+    .map(({ row, index }) => {
+      const zoneIndex = asNumber(row.Zone, -1);
+      const zoneNumber = zoneIndex + 1;
+      return {
+        number: index + 1,
+        zoneIndex,
+        zoneNumber,
+        zoneName:
+          zoneByNumber.get(zoneNumber)?.name ??
+          `Unresolved zone #${zoneNumber}`,
+        latitude: gpsCoordinate(
+          row['Latitude Degree'],
+          row['Latitude Minute'],
+          row['Latitude Minute1'],
+          row['North or South'],
+        ),
+        longitude: gpsCoordinate(
+          row['Longtitude Degree'],
+          row['Longtitude Minute'],
+          row['Longtitude Minute1'],
+          row['East or West'],
+        ),
+        radiusMeters: asNumber(row['Radius(Meter)'], 0),
+      };
+    });
+
   const analog = channels.filter((channel) => channel.mode === 'Analog').length;
   const identity = radioIdRows[0];
 
@@ -271,10 +330,12 @@ export async function codeplugFromCpsFiles(
       zones: zones.length,
       scans: scans.length,
       talkgroups: talkgroups.length,
+      gpsRoaming: gpsRoaming.length,
     },
     channels,
     zones,
     scans,
     talkgroups,
+    gpsRoaming,
   };
 }

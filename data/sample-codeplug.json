@@ -15,7 +15,8 @@
     "dmr": 3,
     "zones": 5,
     "scans": 3,
-    "talkgroups": 3
+    "talkgroups": 3,
+    "gpsRoaming": 1
   },
   "channels": [
     {
@@ -338,6 +339,17 @@
       "name": "Parrot Demo",
       "id": "9990",
       "callType": "Private Call"
+    }
+  ],
+  "gpsRoaming": [
+    {
+      "number": 1,
+      "zoneIndex": 1,
+      "zoneNumber": 2,
+      "zoneName": "01 LOCAL",
+      "latitude": 35.0,
+      "longitude": -98.0,
+      "radiusMeters": 25000
     }
   ]
 }
