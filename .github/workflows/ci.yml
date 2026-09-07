@@ -23,7 +23,7 @@ jobs:
 
       - uses: actions/setup-node@v7
         with:
-          node-version: '22.13'
+          node-version: '22'
           cache: npm
 
       - run: npm ci
@@ -33,6 +33,9 @@ jobs:
 
       - name: Test
         run: npm test
+
+      - name: Typecheck
+        run: npm run typecheck
 
       # Also runs scripts/check-public-data.mjs, the privacy guard that refuses
       # to build unless the bundled fixture is the synthetic DEMO / 0000000 data.

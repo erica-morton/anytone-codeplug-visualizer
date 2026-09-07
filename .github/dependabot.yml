@@ -2,9 +2,12 @@ version: 2
 
 updates:
   # Deploys only fire on push to main, so a Dependabot PR never reaches
-  # production until it is merged. Grouped weekly to keep the noise low now
-  # that the beta Cloudflare/vinext packages are gone and the tree is
-  # mainstream.
+  # production until it is merged, and ci.yml now lints, tests, typechecks and
+  # builds every PR before that happens.
+  #
+  # Groups are restricted to minor and patch. Major bumps arrive as their own
+  # PRs instead of riding inside a routine-looking group: typescript 5 -> 7 and
+  # @types/node 22 -> 26 both once landed hidden in "dev-dependencies".
   - package-ecosystem: npm
     directory: /
     schedule:
@@ -13,6 +16,12 @@ updates:
       time: '06:00'
       timezone: America/Chicago
     open-pull-requests-limit: 5
+    ignore:
+      # @types/node major tracks the Node major, so it must not move ahead of
+      # the runtime in engines and the workflows. Raise it deliberately, at the
+      # same time as those, or the types promise APIs the runtime lacks.
+      - dependency-name: '@types/node'
+        update-types: ['version-update:semver-major']
     groups:
       react:
         patterns:
@@ -20,20 +29,27 @@ updates:
           - react-dom
           - '@types/react'
           - '@types/react-dom'
+        update-types: [minor, patch]
       tailwind:
+        # tailwindcss and @tailwindcss/postcss are released in lockstep and must
+        # move together, so they share one group.
         patterns:
           - tailwindcss
           - '@tailwindcss/*'
           - tw-animate-css
+        update-types: [minor, patch]
       oxc:
         patterns:
           - oxlint
           - oxlint-tsgolint
           - oxfmt
+        update-types: [minor, patch]
       dev-dependencies:
         dependency-type: development
+        update-types: [minor, patch]
       production-dependencies:
         dependency-type: production
+        update-types: [minor, patch]
 
   - package-ecosystem: github-actions
     directory: /
@@ -46,3 +62,4 @@ updates:
       actions:
         patterns:
           - '*'
+        update-types: [minor, patch]
