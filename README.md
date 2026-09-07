@@ -28,8 +28,11 @@ npm run preview
 
 ## Load another codeplug
 
-Use **Load CPS CSVs** and select these files together from an AnyTone CPS
-**Export All** directory:
+The app starts empty. A first-launch guide explains the workflow and can be
+reopened with **Help**. Choose **Load my CSVs** or **Try demo** to begin.
+
+Use **Load CPS CSVs** and select any files together from an AnyTone CPS
+**Export All** directory. These files have dedicated relationship views:
 
 - `Channel.CSV`
 - `Zone.CSV`
@@ -38,9 +41,18 @@ Use **Load CPS CSVs** and select these files together from an AnyTone CPS
 - `RadioIDList.CSV` (optional, used for the display identity)
 - `GPSRoaming.CSV` (optional, shows GPS-driven zone geofences)
 
+No particular combination is required. Channel-only imports show all channels
+without zones. **CSV tables** preserves every imported file and column, including
+`OptionalSetting.csv`, receive groups, and unfamiliar export types. It offers
+search, row counts, and pagination; OptionalSetting uses a searchable setting/value
+view. Numeric settings remain raw CPS codes, not interpreted radio behavior.
+Blank or duplicate headers and uneven row widths are flagged and preserved.
+Select one codeplug's files at a time; each load replaces the current import.
+
 The files are parsed in your browser. The app does not upload the codeplug or
 send it to a server. Reloading the page discards the imported tables and
-restores the synthetic demo.
+returns to an empty workspace. **Unload** also clears the loaded data. The demo
+is loaded only when explicitly chosen.
 
 ## Record changes
 
@@ -52,7 +64,7 @@ for a codeplug-editing session.
 ## Privacy
 
 Do not commit personal CPS exports or generated codeplugs. The repository
-ignores the standard CPS export filenames, `.LST`, and `.rdt` files. The
+ignores all CSV files, `.LST`, and `.rdt` files. The
 production build also refuses to proceed unless the bundled data is the
 synthetic `DEMO / 0000000` fixture and every channel is marked synthetic.
 

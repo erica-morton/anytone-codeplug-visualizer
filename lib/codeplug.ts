@@ -67,6 +67,7 @@ export type GpsRoamingEntry = {
 };
 
 export type CodeplugData = {
+  tables?: CsvTable[];
   identity: { callsign: string; dmrId: string };
   radio: string;
   cps: string;
@@ -89,7 +90,36 @@ export type CodeplugData = {
 
 type CsvRow = Record<string, string>;
 
-function parseCsv(text: string): CsvRow[] {
+export type CsvTable = {
+  name: string;
+  headers: string[];
+  rows: string[][];
+  warnings: string[];
+};
+
+export const emptyCodeplug: CodeplugData = {
+  identity: { callsign: '', dmrId: '' },
+  radio: '',
+  cps: '',
+  controls: { pf1Short: 'Unknown', pf1Long: 'Unknown' },
+  counts: {
+    channels: 0,
+    analog: 0,
+    dmr: 0,
+    zones: 0,
+    scans: 0,
+    talkgroups: 0,
+    gpsRoaming: 0,
+  },
+  channels: [],
+  zones: [],
+  scans: [],
+  talkgroups: [],
+  gpsRoaming: [],
+  tables: [],
+};
+
+export function parseCsv(text: string, name: string): CsvTable {
   const rows: string[][] = [];
   let row: string[] = [];
   let field = '';
@@ -118,7 +148,8 @@ function parseCsv(text: string): CsvRow[] {
     if ((character === '\n' || character === '\r') && !quoted) {
       if (character === '\r' && next === '\n') index += 1;
       row.push(field);
-      if (row.some((value) => value.length > 0)) rows.push(row);
+      if (row.length > 1 || row.some((value) => value.length > 0))
+        rows.push(row);
       row = [];
       field = '';
       continue;
@@ -132,18 +163,30 @@ function parseCsv(text: string): CsvRow[] {
     rows.push(row);
   }
 
-  if (!rows.length) return [];
+  if (quoted)
+    throw new Error(`${name}: an opening quote has no closing quote.`);
+  if (!rows.length)
+    return { name, headers: [], rows: [], warnings: ['This file is empty.'] };
   const headers = rows[0].map((header, index) =>
     index === 0 ? header.replace(/^\uFEFF/, '') : header,
   );
 
-  return rows
-    .slice(1)
-    .map((values) =>
-      Object.fromEntries(
-        headers.map((header, index) => [header, values[index] ?? '']),
-      ),
+  const values = rows.slice(1);
+  const warnings: string[] = [];
+  if (headers.some((header) => !header.trim()))
+    warnings.push('Some columns have no header; column numbers identify them.');
+  if (new Set(headers).size !== headers.length)
+    warnings.push('Duplicate headers are preserved as separate columns.');
+  if (values.some((row) => row.length !== headers.length))
+    warnings.push(
+      'Some rows have a different number of values than the header. All values are preserved.',
     );
+  const width = values.reduce(
+    (max, row) => Math.max(max, row.length),
+    headers.length,
+  );
+  while (headers.length < width) headers.push('');
+  return { name, headers, rows: values, warnings };
 }
 
 function members(value: string): string[] {
@@ -171,37 +214,55 @@ function gpsCoordinate(
   return negative === '1' ? -value : value;
 }
 
-function findFile(files: File[], expected: string): File | undefined {
-  return files.find(
-    (file) => file.name.toLowerCase() === expected.toLowerCase(),
-  );
-}
-
 export async function codeplugFromCpsFiles(
-  fileList: FileList,
+  fileList: FileList | File[],
 ): Promise<CodeplugData> {
   const files = Array.from(fileList);
-  const requiredNames = [
-    'Channel.CSV',
-    'Zone.CSV',
-    'ScanList.CSV',
-    'TalkGroups.CSV',
-  ];
-  const missing = requiredNames.filter((name) => !findFile(files, name));
-
-  if (missing.length) {
-    throw new Error(`Select these CPS files together: ${missing.join(', ')}`);
+  if (!files.length || files.some((file) => !/\.csv$/i.test(file.name))) {
+    throw new Error('Select one or more CPS CSV files.');
   }
-
-  const contents = new Map<string, string>();
-  await Promise.all(
-    files.map(async (file) => {
-      contents.set(file.name.toLowerCase(), await file.text());
-    }),
+  if (
+    new Set(files.map((file) => file.name.toLowerCase())).size !== files.length
+  ) {
+    throw new Error(
+      'Select files from one codeplug at a time; duplicate filenames were found.',
+    );
+  }
+  const tables = await Promise.all(
+    files.map(async (file) => parseCsv(await file.text(), file.name)),
   );
-
-  const rowsFor = (name: string) =>
-    parseCsv(contents.get(name.toLowerCase()) ?? '');
+  const rowsFor = (name: string): CsvRow[] => {
+    const table = tables.find(
+      (table) => table.name.toLowerCase() === name.toLowerCase(),
+    );
+    if (!table) return [];
+    const required: Record<string, string[]> = {
+      'Channel.CSV': ['Channel Name', 'Channel Type', 'Receive Frequency'],
+      'Zone.CSV': ['Zone Name', 'Zone Channel Member'],
+      'ScanList.CSV': ['Scan List Name', 'Scan Channel Member'],
+      'TalkGroups.CSV': ['Name', 'Radio ID'],
+      'RadioIDList.CSV': ['Name', 'Radio ID'],
+      'GPSRoaming.CSV': ['OnOff', 'Zone'],
+    };
+    if (
+      table.rows.length &&
+      required[name]?.some((header) => !table.headers.includes(header))
+    ) {
+      table.warnings.push(
+        'The expected CPS headers were not found. Inspect this file in CSV tables.',
+      );
+      return [];
+    }
+    return table.rows.map(
+      (values) =>
+        new Proxy(
+          Object.fromEntries(
+            table.headers.map((header, index) => [header, values[index] ?? '']),
+          ),
+          { get: (row, key: string) => row[key] ?? '' },
+        ),
+    );
+  };
   const channelRows = rowsFor('Channel.CSV');
   const zoneRows = rowsFor('Zone.CSV');
   const scanRows = rowsFor('ScanList.CSV');
@@ -310,6 +371,7 @@ export async function codeplugFromCpsFiles(
   const identity = radioIdRows[0];
 
   return {
+    tables,
     identity: {
       callsign: identity?.Name || 'Imported codeplug',
       dmrId: identity?.['Radio ID'] || '—',
@@ -320,8 +382,8 @@ export async function codeplugFromCpsFiles(
         ? 'v4-compatible schema'
         : 'CPS table export',
     controls: {
-      pf1Short: 'Not included in table export',
-      pf1Long: 'Not included in table export',
+      pf1Short: 'Not decoded from CSV',
+      pf1Long: 'Not decoded from CSV',
     },
     counts: {
       channels: channels.length,

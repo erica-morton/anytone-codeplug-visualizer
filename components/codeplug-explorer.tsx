@@ -17,6 +17,9 @@ import {
 import { ChangeEvent, useEffect, useMemo, useRef, useState } from 'react';
 
 import sampleData from '@/data/sample-codeplug.json';
+import { AppFooter } from '@/components/app-footer';
+import { GettingStarted } from '@/components/getting-started';
+import { CsvTableExplorer } from '@/components/csv-table-explorer';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -49,10 +52,17 @@ import {
   ScanList,
   Talkgroup,
   codeplugFromCpsFiles,
+  emptyCodeplug,
 } from '@/lib/codeplug';
 
 type ChannelView = 'zone' | 'scan';
-type MainView = 'channels' | 'scans' | 'talkgroups' | 'gps' | 'changes';
+type MainView =
+  | 'channels'
+  | 'scans'
+  | 'talkgroups'
+  | 'gps'
+  | 'tables'
+  | 'changes';
 type ChangeScope = 'channel' | 'zone' | 'codeplug';
 
 type ChangeNote = {
@@ -64,8 +74,21 @@ type ChangeNote = {
   createdAt: string;
 };
 
-const initialData = sampleData as CodeplugData;
+const demoData: CodeplugData = {
+  ...(sampleData as CodeplugData),
+  tables: [
+    {
+      name: 'OptionalSetting.csv',
+      headers: ['Beep', 'Language', 'Gps'],
+      rows: [['1', '0', '0']],
+      warnings: [
+        'Synthetic settings for exploring the viewer; not radio programming defaults.',
+      ],
+    },
+  ],
+};
 const CHANGE_STORAGE_KEY = 'anytone-codeplug-visualizer.changes.v1';
+const GUIDE_STORAGE_KEY = 'anytone-codeplug-visualizer.guide.v1';
 
 function placeFor(channel: Channel): string {
   const place = [channel.city, channel.state].filter(Boolean).join(', ');
@@ -127,13 +150,20 @@ Please update the source-of-truth files, regenerate the CPS package, and validat
 }
 
 export function CodeplugExplorer() {
-  const [data, setData] = useState<CodeplugData>(initialData);
-  const [sourceName, setSourceName] = useState('Synthetic demo sample');
+  const [data, setData] = useState<CodeplugData>(emptyCodeplug);
+  const [sourceName, setSourceName] = useState('');
+  const [importing, setImporting] = useState(false);
+  const [loadVersion, setLoadVersion] = useState(0);
+  const [guideOpen, setGuideOpen] = useState(() => {
+    try {
+      return window.localStorage.getItem(GUIDE_STORAGE_KEY) !== 'seen';
+    } catch {
+      return true;
+    }
+  });
   const [mainView, setMainView] = useState<MainView>('channels');
-  const [zoneName, setZoneName] = useState(initialData.zones[0]?.name ?? '');
-  const [channelName, setChannelName] = useState(
-    initialData.zones[0]?.members[0] ?? initialData.channels[0]?.name ?? '',
-  );
+  const [zoneName, setZoneName] = useState('');
+  const [channelName, setChannelName] = useState('');
   const [channelView, setChannelView] = useState<ChannelView>('zone');
   const [zoneSearch, setZoneSearch] = useState('');
   const [channelSearch, setChannelSearch] = useState('');
@@ -177,7 +207,7 @@ export function CodeplugExplorer() {
     const names =
       channelView === 'scan' && selectedScan
         ? selectedScan.members
-        : (zone?.members ?? []);
+        : (zone?.members ?? data.channels.map((channel) => channel.name));
     const query = channelSearch.trim().toLowerCase();
 
     return names
@@ -199,7 +229,15 @@ export function CodeplugExplorer() {
           channel.notes,
         ].some((value) => value.toLowerCase().includes(query));
       });
-  }, [byName, channelSearch, channelView, modeFilter, selectedScan, zone]);
+  }, [
+    byName,
+    channelSearch,
+    channelView,
+    modeFilter,
+    selectedScan,
+    zone,
+    data.channels,
+  ]);
 
   useEffect(() => {
     const loadChanges = window.setTimeout(() => {
@@ -218,7 +256,11 @@ export function CodeplugExplorer() {
 
   useEffect(() => {
     if (!changesLoaded) return;
-    window.localStorage.setItem(CHANGE_STORAGE_KEY, JSON.stringify(changes));
+    try {
+      window.localStorage.setItem(CHANGE_STORAGE_KEY, JSON.stringify(changes));
+    } catch {
+      /* Browsing still works when storage is unavailable. */
+    }
   }, [changes, changesLoaded]);
 
   function selectZone(nextZoneName: string) {
@@ -254,22 +296,42 @@ export function CodeplugExplorer() {
     setMainView('channels');
   }
 
-  async function importFiles(event: ChangeEvent<HTMLInputElement>) {
-    if (!event.target.files?.length) return;
+  function loadData(imported: CodeplugData, source: string) {
+    setLoadVersion((version) => version + 1);
+    setData(imported);
+    setSourceName(source);
+    setZoneName(imported.zones[0]?.name ?? '');
+    setChannelName(
+      imported.zones[0]?.members[0] ?? imported.channels[0]?.name ?? '',
+    );
+    setChannelView('zone');
+    setMainView(imported.channels.length || !source ? 'channels' : 'tables');
+    setZoneSearch('');
+    setChannelSearch('');
+    setModeFilter('All');
+    setChangeDraft('');
+    setChangeScope('channel');
+    setCopyStatus('');
     setImportError('');
+  }
+
+  function closeGuide() {
+    setGuideOpen(false);
     try {
-      const imported = await codeplugFromCpsFiles(event.target.files);
-      setData(imported);
-      setSourceName('Imported CPS tables');
-      setZoneName(imported.zones[0]?.name ?? '');
-      setChannelName(
-        imported.zones[0]?.members[0] ?? imported.channels[0]?.name ?? '',
-      );
-      setChannelView('zone');
-      setMainView('channels');
-      setZoneSearch('');
-      setChannelSearch('');
-      setModeFilter('All');
+      window.localStorage.setItem(GUIDE_STORAGE_KEY, 'seen');
+    } catch {
+      /* The guide may show again if storage is unavailable. */
+    }
+  }
+
+  async function importFiles(event: ChangeEvent<HTMLInputElement>) {
+    const input = event.currentTarget;
+    if (!input.files?.length) return;
+    setImportError('');
+    setImporting(true);
+    try {
+      const imported = await codeplugFromCpsFiles(input.files);
+      loadData(imported, 'Imported CPS tables');
     } catch (error) {
       setImportError(
         error instanceof Error
@@ -277,19 +339,20 @@ export function CodeplugExplorer() {
           : 'The CPS files could not be read.',
       );
     } finally {
-      event.target.value = '';
+      input.value = '';
+      setImporting(false);
     }
   }
 
   function addChange() {
     const note = changeDraft.trim();
-    if (!note || !selectedChannel || !zone) return;
+    if (!note || !selectedChannel || (changeScope === 'zone' && !zone)) return;
     setChanges((current) => [
       ...current,
       {
         id: crypto.randomUUID(),
         scope: changeScope,
-        zone: zone.name,
+        zone: zone?.name ?? '',
         channel: changeScope === 'channel' ? selectedChannel.name : '',
         note,
         createdAt: new Date().toISOString(),
@@ -326,36 +389,15 @@ export function CodeplugExplorer() {
     setChanges((current) => current.filter((change) => change.id !== id));
   }
 
-  if (!zone || !selectedChannel) {
-    return (
-      <main className="mx-auto max-w-3xl px-4 py-16">
-        <Card>
-          <CardHeader>
-            <CardTitle>No usable codeplug data</CardTitle>
-            <CardDescription>
-              Load a complete AnyTone CPS table export to continue.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button onClick={() => fileInputRef.current?.click()}>
-              <FileUp data-icon="inline-start" /> Load CPS CSV files
-            </Button>
-            <input
-              ref={fileInputRef}
-              type="file"
-              multiple
-              accept=".csv"
-              hidden
-              onChange={importFiles}
-            />
-          </CardContent>
-        </Card>
-      </main>
-    );
-  }
-
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <div className="flex min-h-screen flex-col bg-background text-foreground">
+      <GettingStarted
+        open={guideOpen}
+        hasData={Boolean(sourceName)}
+        onClose={closeGuide}
+        onImport={() => fileInputRef.current?.click()}
+        onDemo={() => loadData(demoData, 'Synthetic demo sample')}
+      />
       <div className="h-1 bg-[linear-gradient(90deg,var(--signal-green),var(--signal-amber),var(--signal-red))]" />
       <header className="sticky top-0 z-20 border-b bg-background/92 backdrop-blur-lg">
         <div className="mx-auto flex max-w-[1500px] flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6 lg:px-8">
@@ -368,8 +410,9 @@ export function CodeplugExplorer() {
                 Codeplug Visualizer
               </h1>
               <p className="truncate text-xs text-muted-foreground sm:text-sm">
-                {data.identity.callsign} · DMR {data.identity.dmrId} ·{' '}
-                {sourceName}
+                {sourceName
+                  ? `${data.identity.callsign} · DMR ${data.identity.dmrId} · ${sourceName}`
+                  : 'No codeplug loaded · Your files stay in your browser'}
               </p>
             </div>
           </div>
@@ -384,13 +427,31 @@ export function CodeplugExplorer() {
             />
             <Button
               variant="outline"
+              disabled={importing}
               onClick={() => fileInputRef.current?.click()}
             >
-              <FileUp data-icon="inline-start" /> Load CPS CSVs
+              <FileUp data-icon="inline-start" />{' '}
+              {importing ? 'Loading…' : 'Load CPS CSVs'}
             </Button>
-            <Badge variant="secondary" className="hidden sm:inline-flex">
-              {data.cps}
-            </Badge>
+            <Button
+              variant="ghost"
+              disabled={importing}
+              onClick={() => loadData(demoData, 'Synthetic demo sample')}
+            >
+              Load demo
+            </Button>
+            {sourceName && (
+              <Button
+                variant="ghost"
+                disabled={importing}
+                onClick={() => loadData(emptyCodeplug, '')}
+              >
+                Unload
+              </Button>
+            )}
+            <Button variant="ghost" onClick={() => setGuideOpen(true)}>
+              Help
+            </Button>
           </div>
           {importError ? (
             <div
@@ -404,7 +465,46 @@ export function CodeplugExplorer() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-[1500px] space-y-5 px-4 py-5 sm:px-6 lg:px-8">
+      <main className="mx-auto w-full max-w-[1500px] space-y-5 px-4 py-5 sm:px-6 lg:px-8">
+        {!sourceName ? (
+          <Card className="mx-auto my-10 max-w-2xl">
+            <CardHeader>
+              <CardTitle>Choose a codeplug to explore</CardTitle>
+              <CardDescription>
+                Load your AnyTone CPS CSV exports or try the synthetic demo.
+                Nothing is loaded automatically.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  disabled={importing}
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  <FileUp data-icon="inline-start" /> Load my CSVs
+                </Button>
+                <Button
+                  variant="outline"
+                  disabled={importing}
+                  onClick={() => loadData(demoData, 'Synthetic demo sample')}
+                >
+                  Try demo
+                </Button>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Select any CSVs together from a CPS Export All folder. Each load
+                replaces the current files. Reloading returns here; saved change
+                notes stay in this browser.
+              </p>
+            </CardContent>
+          </Card>
+        ) : null}
+        {sourceName === 'Synthetic demo sample' && (
+          <p className="text-sm text-muted-foreground">
+            Synthetic demo for exploring the app. Do not program this data into
+            a radio.
+          </p>
+        )}
         <section
           className="grid grid-cols-2 gap-3 lg:grid-cols-4"
           aria-label="Codeplug totals"
@@ -422,7 +522,7 @@ export function CodeplugExplorer() {
           <Metric
             label="Scan lists"
             value={data.counts.scans}
-            detail="PF1 scan sets"
+            detail="channel scan sets"
           />
           <Metric
             label="Talkgroups"
@@ -446,163 +546,200 @@ export function CodeplugExplorer() {
               <TabsTrigger value="changes">
                 Changes ({changes.length})
               </TabsTrigger>
+              <TabsTrigger value="tables">
+                CSV tables ({data.tables?.length ?? 0})
+              </TabsTrigger>
             </TabsList>
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <ScanLine
-                className="size-4 text-[var(--signal-green)]"
-                aria-hidden="true"
-              />
-              PF1 short: {data.controls.pf1Short}
-              <span aria-hidden="true">·</span>
-              <BatteryMedium
-                className="size-4 text-[var(--signal-amber)]"
-                aria-hidden="true"
-              />
-              long: {data.controls.pf1Long}
-            </div>
+            {sourceName && (
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <ScanLine
+                  className="size-4 text-[var(--signal-green)]"
+                  aria-hidden="true"
+                />
+                PF1 short: {data.controls.pf1Short}
+                <span aria-hidden="true">·</span>
+                <BatteryMedium
+                  className="size-4 text-[var(--signal-amber)]"
+                  aria-hidden="true"
+                />
+                long: {data.controls.pf1Long}
+              </div>
+            )}
           </div>
 
           <TabsContent value="channels" className="mt-4">
-            <div className="grid items-start gap-4 lg:grid-cols-[250px_minmax(0,1fr)]">
-              <Card className="lg:sticky lg:top-20">
+            {!data.channels.length ? (
+              <Card>
                 <CardHeader>
-                  <CardTitle>Zones</CardTitle>
+                  <CardTitle>No channels loaded</CardTitle>
                   <CardDescription>
-                    Select the group shown on the radio.
+                    Load Channel.CSV to explore channels. Other imported files
+                    are available in CSV tables.
                   </CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-3">
-                  <div className="relative">
-                    <Search
-                      className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
-                      aria-hidden="true"
-                    />
-                    <Input
-                      aria-label="Filter zones"
-                      value={zoneSearch}
-                      onChange={(event) => setZoneSearch(event.target.value)}
-                      placeholder="Filter zones"
-                      className="pl-8"
-                    />
-                  </div>
-                  <div className="max-h-[60vh] space-y-1 overflow-y-auto pr-1">
-                    {filteredZones.map((candidate) => (
-                      <Button
-                        key={candidate.name}
-                        variant={
-                          candidate.name === zone.name ? 'secondary' : 'ghost'
-                        }
-                        className="h-auto w-full justify-between py-2 text-left"
-                        onClick={() => selectZone(candidate.name)}
-                      >
-                        <span className="min-w-0 truncate">
-                          {candidate.name}
-                        </span>
-                        <span className="font-mono text-xs text-muted-foreground">
-                          {candidate.members.length}
-                        </span>
-                      </Button>
-                    ))}
-                  </div>
-                </CardContent>
               </Card>
-
-              <div className="min-w-0 space-y-4">
-                <ScanPathCard
-                  zoneName={zone.name}
-                  channel={selectedChannel}
-                  scan={selectedScan}
-                  changeScope={changeScope}
-                  setChangeScope={setChangeScope}
-                  changeDraft={changeDraft}
-                  setChangeDraft={setChangeDraft}
-                  addChange={addChange}
-                />
-
-                <Card>
+            ) : (
+              <div className="grid items-start gap-4 lg:grid-cols-[250px_minmax(0,1fr)]">
+                <Card className="lg:sticky lg:top-20">
                   <CardHeader>
-                    <CardTitle>
-                      {channelView === 'zone' ? zone.name : selectedScan?.name}
-                    </CardTitle>
+                    <CardTitle>Zones</CardTitle>
                     <CardDescription>
-                      {channelView === 'zone'
-                        ? `${zone.members.length} programmed channels in this zone`
-                        : `${selectedScan?.members.length ?? 0} channels PF1 will scan from ${selectedChannel.name}`}
+                      Select the group shown on the radio.
                     </CardDescription>
-                    <CardAction>
-                      <div className="flex rounded-lg bg-muted p-0.5">
-                        <Button
-                          size="sm"
-                          variant={channelView === 'zone' ? 'default' : 'ghost'}
-                          onClick={() => setChannelView('zone')}
-                        >
-                          Zone
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant={channelView === 'scan' ? 'default' : 'ghost'}
-                          disabled={!selectedScan}
-                          onClick={() => setChannelView('scan')}
-                        >
-                          PF1 scan set
-                        </Button>
-                      </div>
-                    </CardAction>
                   </CardHeader>
                   <CardContent className="space-y-3">
-                    <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_150px]">
-                      <div className="relative">
-                        <Search
-                          className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
-                          aria-hidden="true"
-                        />
-                        <Input
-                          aria-label="Filter channels"
-                          value={channelSearch}
-                          onChange={(event) =>
-                            setChannelSearch(event.target.value)
-                          }
-                          placeholder="Name, city, frequency, TG…"
-                          className="pl-8"
-                        />
-                      </div>
-                      <NativeSelect
-                        aria-label="Filter channel mode"
-                        value={modeFilter}
-                        onChange={(event) =>
-                          setModeFilter(event.target.value as typeof modeFilter)
-                        }
-                        className="w-full"
-                      >
-                        <NativeSelectOption value="All">
-                          All modes
-                        </NativeSelectOption>
-                        <NativeSelectOption value="Analog">
-                          Analog
-                        </NativeSelectOption>
-                        <NativeSelectOption value="DMR">DMR</NativeSelectOption>
-                      </NativeSelect>
+                    <div className="relative">
+                      <Search
+                        className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+                        aria-hidden="true"
+                      />
+                      <Input
+                        aria-label="Filter zones"
+                        value={zoneSearch}
+                        onChange={(event) => setZoneSearch(event.target.value)}
+                        placeholder="Filter zones"
+                        className="pl-8"
+                      />
                     </div>
-
-                    <ChannelTable
-                      channels={visibleChannels}
-                      selected={selectedChannel.name}
-                      onSelect={setChannelName}
-                    />
-                    <p
-                      className="text-xs text-muted-foreground"
-                      aria-live="polite"
-                    >
-                      {visibleChannels.length} of{' '}
-                      {channelView === 'zone'
-                        ? zone.members.length
-                        : (selectedScan?.members.length ?? 0)}{' '}
-                      shown
-                    </p>
+                    <div className="max-h-[60vh] space-y-1 overflow-y-auto pr-1">
+                      {filteredZones.map((candidate) => (
+                        <Button
+                          key={candidate.name}
+                          variant={
+                            candidate.name === zone?.name
+                              ? 'secondary'
+                              : 'ghost'
+                          }
+                          className="h-auto w-full justify-between py-2 text-left"
+                          onClick={() => selectZone(candidate.name)}
+                        >
+                          <span className="min-w-0 truncate">
+                            {candidate.name}
+                          </span>
+                          <span className="font-mono text-xs text-muted-foreground">
+                            {candidate.members.length}
+                          </span>
+                        </Button>
+                      ))}
+                      {!data.zones.length && (
+                        <p className="text-sm text-muted-foreground">
+                          No zones loaded. Showing all channels.
+                        </p>
+                      )}
+                    </div>
                   </CardContent>
                 </Card>
+
+                <div className="min-w-0 space-y-4">
+                  {selectedChannel && (
+                    <ScanPathCard
+                      zoneName={zone?.name ?? 'All channels'}
+                      hasZone={Boolean(zone)}
+                      channel={selectedChannel}
+                      scan={selectedScan}
+                      changeScope={changeScope}
+                      setChangeScope={setChangeScope}
+                      changeDraft={changeDraft}
+                      setChangeDraft={setChangeDraft}
+                      addChange={addChange}
+                    />
+                  )}
+
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>
+                        {channelView === 'zone'
+                          ? (zone?.name ?? 'All channels')
+                          : selectedScan?.name}
+                      </CardTitle>
+                      <CardDescription>
+                        {channelView === 'zone'
+                          ? `${zone?.members.length ?? data.channels.length} programmed channels`
+                          : `${selectedScan?.members.length ?? 0} channels in the scan list attached to ${selectedChannel?.name}`}
+                      </CardDescription>
+                      <CardAction>
+                        <div className="flex rounded-lg bg-muted p-0.5">
+                          <Button
+                            size="sm"
+                            variant={
+                              channelView === 'zone' ? 'default' : 'ghost'
+                            }
+                            onClick={() => setChannelView('zone')}
+                          >
+                            Zone
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant={
+                              channelView === 'scan' ? 'default' : 'ghost'
+                            }
+                            disabled={!selectedScan}
+                            onClick={() => setChannelView('scan')}
+                          >
+                            Scan set
+                          </Button>
+                        </div>
+                      </CardAction>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                      <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_150px]">
+                        <div className="relative">
+                          <Search
+                            className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+                            aria-hidden="true"
+                          />
+                          <Input
+                            aria-label="Filter channels"
+                            value={channelSearch}
+                            onChange={(event) =>
+                              setChannelSearch(event.target.value)
+                            }
+                            placeholder="Name, city, frequency, TG…"
+                            className="pl-8"
+                          />
+                        </div>
+                        <NativeSelect
+                          aria-label="Filter channel mode"
+                          value={modeFilter}
+                          onChange={(event) =>
+                            setModeFilter(
+                              event.target.value as typeof modeFilter,
+                            )
+                          }
+                          className="w-full"
+                        >
+                          <NativeSelectOption value="All">
+                            All modes
+                          </NativeSelectOption>
+                          <NativeSelectOption value="Analog">
+                            Analog
+                          </NativeSelectOption>
+                          <NativeSelectOption value="DMR">
+                            DMR
+                          </NativeSelectOption>
+                        </NativeSelect>
+                      </div>
+
+                      <ChannelTable
+                        channels={visibleChannels}
+                        selected={selectedChannel?.name ?? ''}
+                        onSelect={setChannelName}
+                      />
+                      <p
+                        className="text-xs text-muted-foreground"
+                        aria-live="polite"
+                      >
+                        {visibleChannels.length} of{' '}
+                        {channelView === 'zone'
+                          ? (zone?.members.length ?? data.channels.length)
+                          : (selectedScan?.members.length ?? 0)}{' '}
+                        shown
+                      </p>
+                    </CardContent>
+                  </Card>
+                </div>
               </div>
-            </div>
+            )}
           </TabsContent>
 
           <TabsContent value="scans" className="mt-4">
@@ -622,6 +759,9 @@ export function CodeplugExplorer() {
 
           <TabsContent value="gps" className="mt-4">
             <GpsRoamingTable entries={data.gpsRoaming} />
+          </TabsContent>
+          <TabsContent value="tables" className="mt-4">
+            <CsvTableExplorer key={loadVersion} tables={data.tables ?? []} />
           </TabsContent>
 
           <TabsContent value="changes" className="mt-4">
@@ -696,7 +836,7 @@ export function CodeplugExplorer() {
                       />
                       <p className="font-medium">No changes recorded yet</p>
                       <p className="mt-1 text-sm text-muted-foreground">
-                        Select a channel and add a note from its PF1 scan card.
+                        Select a channel and add a note from its scan card.
                       </p>
                     </div>
                   </div>
@@ -712,6 +852,7 @@ export function CodeplugExplorer() {
           </TabsContent>
         </Tabs>
       </main>
+      <AppFooter />
     </div>
   );
 }
@@ -816,6 +957,7 @@ function Metric({
 
 function ScanPathCard({
   zoneName,
+  hasZone,
   channel,
   scan,
   changeScope,
@@ -825,6 +967,7 @@ function ScanPathCard({
   addChange,
 }: {
   zoneName: string;
+  hasZone: boolean;
   channel: Channel;
   scan?: ScanList;
   changeScope: ChangeScope;
@@ -837,8 +980,8 @@ function ScanPathCard({
     <Card className="overflow-visible border-l-4 border-l-primary">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <ScanLine className="size-4 text-primary" aria-hidden="true" /> PF1
-          scan path
+          <ScanLine className="size-4 text-primary" aria-hidden="true" />{' '}
+          Channel scan path
         </CardTitle>
         <CardDescription>
           {zoneName} · channel #{channel.number}
@@ -857,7 +1000,7 @@ function ScanPathCard({
             aria-hidden="true"
           />
           <PathNode
-            label="PF1 short uses"
+            label="Attached scan list"
             value={scan?.name || 'No scan list'}
           />
           <ChevronRight
@@ -867,7 +1010,9 @@ function ScanPathCard({
           <PathNode
             label="Result"
             value={
-              scan ? `${scan.members.length} channels` : 'Nothing programmed'
+              scan
+                ? `${scan.members.length} channels`
+                : 'No scan members loaded'
             }
           />
         </div>
@@ -883,8 +1028,8 @@ function ScanPathCard({
         ) : (
           <div className="flex items-center gap-2 rounded-lg bg-[var(--signal-amber-soft)] px-3 py-2 text-sm text-[var(--signal-amber-foreground)]">
             <AlertTriangle className="size-4 shrink-0" aria-hidden="true" />
-            This channel has no attached scan list. That is expected for the
-            current DMR zones.
+            This channel has no loaded scan list. Check its assignment in CPS,
+            or include ScanList.CSV with your import.
           </div>
         )}
 
@@ -918,7 +1063,9 @@ function ScanPathCard({
             <NativeSelectOption value="channel">
               This channel
             </NativeSelectOption>
-            <NativeSelectOption value="zone">This zone</NativeSelectOption>
+            <NativeSelectOption value="zone" disabled={!hasZone}>
+              This zone
+            </NativeSelectOption>
             <NativeSelectOption value="codeplug">
               Whole codeplug
             </NativeSelectOption>

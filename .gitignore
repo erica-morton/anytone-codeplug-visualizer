@@ -35,6 +35,7 @@ yarn-error.log*
 /work/
 
 # Personal radio programming data belongs outside this public repository.
+*.[cC][sS][vV]
 /local-data/
 /private/
 *.rdt
