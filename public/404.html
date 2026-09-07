@@ -1,0 +1,252 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Page not found · AnyTone Codeplug Visualizer</title>
+    <meta name="robots" content="noindex" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+
+    <!--
+      Served by CloudFront for both 403 and 404 from the origin bucket, so it
+      must stand alone: Vite copies public/ verbatim without hashing or
+      bundling, which means no stylesheet link and no reference to any hashed
+      asset. Every path here is root-absolute because this page is served at
+      whatever URL the visitor asked for. Tokens mirror src/globals.css.
+    -->
+    <style>
+      :root {
+        --background: oklch(0.975 0.012 110);
+        --foreground: oklch(0.19 0.018 150);
+        --card: oklch(0.995 0.006 110);
+        --muted-foreground: oklch(0.48 0.025 135);
+        --primary: oklch(0.43 0.105 153);
+        --primary-foreground: oklch(0.985 0.008 120);
+        --border: oklch(0.86 0.025 120);
+        --ring: oklch(0.52 0.11 153);
+        --signal-green: oklch(0.58 0.14 150);
+        --signal-amber: oklch(0.7 0.15 82);
+        --signal-red: oklch(0.58 0.2 28);
+        --radius: 0.65rem;
+        --font-sans: 'Avenir Next', Avenir, 'Segoe UI', sans-serif;
+        --font-mono: 'SFMono-Regular', Consolas, 'Liberation Mono', monospace;
+      }
+
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --background: oklch(0.155 0.018 150);
+          --foreground: oklch(0.94 0.015 115);
+          --card: oklch(0.205 0.022 150);
+          --muted-foreground: oklch(0.72 0.025 125);
+          --primary: oklch(0.7 0.14 150);
+          --primary-foreground: oklch(0.15 0.025 150);
+          --border: oklch(0.36 0.025 145);
+          --ring: oklch(0.68 0.13 150);
+          --signal-green: oklch(0.72 0.15 150);
+          --signal-amber: oklch(0.76 0.14 82);
+          --signal-red: oklch(0.7 0.18 28);
+        }
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        background: var(--background);
+        color: var(--foreground);
+        font-family: var(--font-sans);
+        -webkit-font-smoothing: antialiased;
+      }
+
+      .signal {
+        height: 4px;
+        flex-shrink: 0;
+        background: linear-gradient(
+          90deg,
+          var(--signal-green),
+          var(--signal-amber),
+          var(--signal-red)
+        );
+      }
+
+      main {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 3rem 1.25rem;
+      }
+
+      .card {
+        width: 100%;
+        max-width: 33rem;
+        text-align: center;
+      }
+
+      .badge {
+        width: 3.5rem;
+        height: 3.5rem;
+        margin: 0 auto 1.5rem;
+        display: grid;
+        place-items: center;
+        border-radius: calc(var(--radius) * 1.4);
+        background: var(--primary);
+        color: var(--primary-foreground);
+        box-shadow: 0 1px 2px oklch(0 0 0 / 0.08);
+      }
+
+      .code {
+        margin: 0 0 0.5rem;
+        font-family: var(--font-mono);
+        font-size: 0.8125rem;
+        letter-spacing: 0.08em;
+        color: var(--muted-foreground);
+      }
+
+      h1 {
+        margin: 0 0 0.75rem;
+        font-size: 1.75rem;
+        font-weight: 600;
+        letter-spacing: -0.02em;
+      }
+
+      p.lede {
+        margin: 0 auto 2rem;
+        max-width: 30rem;
+        line-height: 1.6;
+        color: var(--muted-foreground);
+      }
+
+      .actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+        justify-content: center;
+      }
+
+      .button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0.625rem 1.25rem;
+        border-radius: var(--radius);
+        border: 1px solid transparent;
+        font: inherit;
+        font-weight: 500;
+        text-decoration: none;
+        cursor: pointer;
+      }
+
+      .button-primary {
+        background: var(--primary);
+        color: var(--primary-foreground);
+      }
+
+      .button-primary:hover {
+        filter: brightness(1.08);
+      }
+
+      .button-secondary {
+        border-color: var(--border);
+        color: var(--foreground);
+        background: var(--card);
+      }
+
+      .button-secondary:hover {
+        border-color: var(--ring);
+      }
+
+      .button:focus-visible,
+      footer a:focus-visible {
+        outline: 2px solid var(--ring);
+        outline-offset: 2px;
+      }
+
+      footer {
+        border-top: 1px solid var(--border);
+        padding: 1.5rem 1.25rem;
+        font-size: 0.75rem;
+        color: var(--muted-foreground);
+        text-align: center;
+      }
+
+      footer a {
+        color: inherit;
+        text-decoration: underline;
+        text-underline-offset: 4px;
+      }
+
+      footer a:hover {
+        color: var(--foreground);
+      }
+
+      @media (prefers-reduced-motion: no-preference) {
+        .button {
+          transition:
+            filter 0.15s ease,
+            border-color 0.15s ease;
+        }
+      }
+    </style>
+  </head>
+
+  <body>
+    <div class="signal"></div>
+
+    <main>
+      <div class="card">
+        <div class="badge">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="28"
+            height="28"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <path d="M4.9 16.1C1 12.2 1 5.8 4.9 1.9" />
+            <path d="M7.8 4.7a6.14 6.14 0 0 0-.8 7.5" />
+            <circle cx="12" cy="9" r="2" />
+            <path d="M16.2 4.8c2 2 2.26 5.11.8 7.47" />
+            <path d="M19.1 1.9a9.96 9.96 0 0 1 0 14.1" />
+            <path d="M9.5 18h5" />
+            <path d="m8 22 4-11 4 11" />
+          </svg>
+        </div>
+
+        <p class="code">ERROR 404</p>
+        <h1>Nothing on this frequency</h1>
+        <p class="lede">
+          That page isn&rsquo;t here. The Codeplug Visualizer is a single page,
+          so any address below the root will land you here. If you followed a
+          bookmark from an older version, reload from the top and try again.
+        </p>
+
+        <div class="actions">
+          <a class="button button-primary" href="/">Back to the visualizer</a>
+          <a
+            class="button button-secondary"
+            href="https://github.com/erica-morton/anytone-codeplug-visualizer"
+            >Report a broken link</a
+          >
+        </div>
+      </div>
+    </main>
+
+    <footer>
+      <p style="margin: 0">
+        Made with <span role="img" aria-label="love">&#10084;&#65039;</span> by
+        <a href="https://kj5rmr.com">KJ5RMR</a>
+      </p>
+    </footer>
+  </body>
+</html>

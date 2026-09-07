@@ -2,6 +2,10 @@
 @import 'tw-animate-css';
 @import 'shadcn/tailwind.css';
 
+/* public/ is copied verbatim and uses no Tailwind classes; without this its
+   markup leaks class candidates (.card, .badge, .code ...) into the app CSS. */
+@source not '../public';
+
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
