@@ -11,9 +11,7 @@
 # testing
 /coverage
 
-# next.js
-/.next/
-/.vinext/
+# build output
 /out/
 
 # misc
@@ -32,10 +30,7 @@ yarn-error.log*
 .env*
 
 # deployment and generated files
-.vercel
-next-env.d.ts
 /dist/
-/.wrangler/
 /outputs/
 /work/
 

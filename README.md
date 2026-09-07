@@ -17,13 +17,13 @@ npm run dev
 ```
 
 Open the local address printed by the development server, normally
-<http://localhost:3000>.
+<http://localhost:5173>.
 
 For a production build:
 
 ```bash
 npm run build
-npm start
+npm run preview
 ```
 
 ## Load another codeplug
