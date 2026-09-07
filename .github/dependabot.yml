@@ -1,0 +1,48 @@
+version: 2
+
+updates:
+  # Deploys only fire on push to main, so a Dependabot PR never reaches
+  # production until it is merged. Grouped weekly to keep the noise low now
+  # that the beta Cloudflare/vinext packages are gone and the tree is
+  # mainstream.
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: '06:00'
+      timezone: America/Chicago
+    open-pull-requests-limit: 5
+    groups:
+      react:
+        patterns:
+          - react
+          - react-dom
+          - '@types/react'
+          - '@types/react-dom'
+      tailwind:
+        patterns:
+          - tailwindcss
+          - '@tailwindcss/*'
+          - tw-animate-css
+      oxc:
+        patterns:
+          - oxlint
+          - oxlint-tsgolint
+          - oxfmt
+      dev-dependencies:
+        dependency-type: development
+      production-dependencies:
+        dependency-type: production
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: '06:00'
+      timezone: America/Chicago
+    groups:
+      actions:
+        patterns:
+          - '*'

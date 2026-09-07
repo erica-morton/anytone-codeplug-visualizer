@@ -1,7 +1,7 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 
-import '@/app/globals.css';
+import './globals.css';
 
 import { CodeplugExplorer } from '@/components/codeplug-explorer';
 

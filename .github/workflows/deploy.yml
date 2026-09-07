@@ -19,6 +19,47 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Full history: the version guard below diffs against the commit that
+          # was on main before this push, which a shallow clone would not have.
+          fetch-depth: 0
+
+      # The footer renders __APP_VERSION__, baked in at build time from
+      # package.json. If the app changes without a version bump, the deployed
+      # build misidentifies itself. Fails fast, before assuming the AWS role.
+      #
+      # Scoped to paths that affect the built output, which deliberately
+      # excludes package.json/package-lock.json. Dependabot npm PRs touch only
+      # those, and its actions PRs touch only .github/, so both merge without a
+      # bump. Those merges DO redeploy the app, but __GIT_HASH__ in the footer
+      # still pins the exact build, so nothing becomes unidentifiable.
+      - name: Require a version bump for app changes
+        if: github.event_name == 'push'
+        env:
+          BEFORE: ${{ github.event.before }}
+        run: |
+          set -euo pipefail
+          if [ -z "${BEFORE:-}" ] || [ "$BEFORE" = "0000000000000000000000000000000000000000" ]; then
+            echo "No prior commit to compare against; skipping."; exit 0
+          fi
+          if ! git cat-file -e "${BEFORE}^{commit}" 2>/dev/null; then
+            echo "Prior commit ${BEFORE} unavailable (force push?); skipping."; exit 0
+          fi
+          changed=$(git diff --name-only "$BEFORE" HEAD -- \
+            index.html src components lib hooks public data \
+            vite.config.ts tsconfig.json components.json)
+          if [ -z "$changed" ]; then
+            echo "No app files changed; version bump not required."; exit 0
+          fi
+          echo "App files changed:"; echo "$changed" | sed 's/^/  /'
+          version_of() { grep -m1 '"version"' | sed 's/.*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/'; }
+          old=$(git show "${BEFORE}:package.json" | version_of)
+          new=$(version_of < package.json)
+          echo "version: ${old} -> ${new}"
+          if [ "$old" = "$new" ]; then
+            echo "::error file=package.json::App files changed but the version is still ${new}. Run 'npm version patch --no-git-tag-version', commit, and tag the release."
+            exit 1
+          fi
 
       - uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -31,6 +72,15 @@ jobs:
           cache: npm
 
       - run: npm ci
+
+      # Gate the deploy on lint and tests. Without these a lint failure or a
+      # broken parser reaches production, because the build alone does not
+      # type-check or exercise lib/codeplug.ts.
+      - name: Lint
+        run: npm run lint
+
+      - name: Test
+        run: npm test
 
       # Also runs scripts/check-public-data.mjs, which refuses to build unless
       # the bundled fixture is the synthetic DEMO / 0000000 data. A deploy can
