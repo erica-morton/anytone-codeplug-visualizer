@@ -232,3 +232,55 @@ test('a zone-scoped note records the zone and omits the channel', async () => {
   expect(markdown).toContain('Scope: zone | Zone: 00 DEMO');
   expect(markdown).not.toContain('Channel: DEMO-VHF');
 });
+
+/* ---------------------------------------------------------------------------
+ * Phase 3: the CSV import path. lib/codeplug.test.mjs proves the parser; these
+ * prove the app wires it up -- that a good import reaches the screen and a bad
+ * one surfaces the parser's reason instead of failing silently.
+ * ------------------------------------------------------------------------ */
+
+function fileInput() {
+  const input = document.querySelector<HTMLInputElement>('input[type="file"]');
+  if (!input) throw new Error('file input not found');
+  return input;
+}
+
+const csv = (name: string, body: string) =>
+  new File([body], name, { type: 'text/csv' });
+
+test('importing CPS files loads them and labels the source', async () => {
+  const user = userEvent.setup({ applyAccept: false });
+  render(<CodeplugExplorer />);
+
+  await user.upload(
+    fileInput(),
+    [
+      csv(
+        'Channel.CSV',
+        'No.,Channel Name,Channel Type,Receive Frequency,Scan List\n' +
+          '1,SYNTH-A,A-Analog,146.520,Synth Scan\n' +
+          '2,SYNTH-B,D-Digital,440.100,Synth Scan',
+      ),
+      csv('Zone.CSV', 'No.,Zone Name,Zone Channel Member\n1,SYNTH ZONE,SYNTH-A|SYNTH-B'),
+  ]);
+
+  expect(await screen.findByText(/Imported CPS tables/)).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: /SYNTH ZONE/ })).toBeInTheDocument();
+  expect(rowFor('SYNTH-A')).toBeInTheDocument();
+  expect(rowFor('SYNTH-B')).toBeInTheDocument();
+  // The parser's mode mapping has to survive the round trip through the UI.
+  expect(currentChannel()).toBe('SYNTH-A');
+});
+
+test('an unreadable import surfaces the parser reason instead of failing quietly', async () => {
+  const user = userEvent.setup({ applyAccept: false });
+  render(<CodeplugExplorer />);
+
+  // A quoted field that is never closed: the parser rejects this by design.
+  await user.upload(fileInput(), [csv('Extra.csv', 'Name\n"unfinished')]);
+
+  const alert = await screen.findByRole('alert');
+  expect(alert).toHaveTextContent(/closing quote/i);
+  // A failed import must not leave a half-loaded codeplug behind.
+  expect(screen.queryByText(/Imported CPS tables/)).not.toBeInTheDocument();
+});
