@@ -68,6 +68,79 @@ if (
   );
 }
 
+// ---------------------------------------------------------------------------
+// Nothing but the sanctioned fixture may be a codeplug.
+//
+// The checks above prove data/sample-codeplug.json is synthetic, but they only
+// ever looked at that one path. A real export dropped anywhere else --
+// data/my-plug.json, a stray file at the root -- would have built and deployed
+// untouched. A codeplug carries a callsign, a DMR ID and, through GPS roaming,
+// home coordinates, so the sweep below refuses the build if anything outside
+// the sanctioned path is shaped like one.
+// ---------------------------------------------------------------------------
+
+const SANCTIONED = 'data/sample-codeplug.json';
+const SKIP_DIRS = new Set([
+  '.git',
+  'node_modules',
+  'dist',
+  'out',
+  'coverage',
+  'local-data',
+  'private',
+  '.github',
+]);
+
+const repoRoot = new URL('../', import.meta.url);
+
+/** A codeplug is identified by its radio identity plus a channel list. */
+function looksLikeCodeplug(text) {
+  // Cheap text gate first so package-lock.json and friends are never parsed.
+  if (!text.includes('"identity"') || !text.includes('"channels"'))
+    return false;
+  try {
+    const value = JSON.parse(text);
+    return (
+      Boolean(value?.identity) &&
+      (value.identity.dmrId !== undefined ||
+        value.identity.callsign !== undefined) &&
+      Array.isArray(value.channels)
+    );
+  } catch {
+    return false;
+  }
+}
+
+function walk(dir, relative = '') {
+  const found = [];
+  for (const entry of fs.readdirSync(new URL(dir), { withFileTypes: true })) {
+    if (entry.name.startsWith('.') && entry.name !== '.github') {
+      if (SKIP_DIRS.has(entry.name)) continue;
+    }
+    if (SKIP_DIRS.has(entry.name)) continue;
+    const childRelative = relative ? `${relative}/${entry.name}` : entry.name;
+    if (entry.isDirectory()) {
+      found.push(...walk(new URL(`${entry.name}/`, dir), childRelative));
+    } else if (entry.name.endsWith('.json')) {
+      found.push(childRelative);
+    }
+  }
+  return found;
+}
+
+const strays = walk(repoRoot).filter(
+  (file) =>
+    file !== SANCTIONED &&
+    looksLikeCodeplug(fs.readFileSync(new URL(file, repoRoot), 'utf8')),
+);
+
+if (strays.length > 0) {
+  throw new Error(
+    `Refusing to build: codeplug data outside ${SANCTIONED}: ${strays.join(', ')}. ` +
+      'Move personal exports under local-data/, which is ignored.',
+  );
+}
+
 console.log(
-  `Public-data check passed: ${sample.channels.length} synthetic channels.`,
+  `Public-data check passed: ${sample.channels.length} synthetic channels, no stray codeplugs.`,
 );

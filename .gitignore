@@ -36,6 +36,11 @@ yarn-error.log*
 /work/
 
 # Personal radio programming data belongs outside this public repository.
+# Only the sanctioned synthetic fixture may live in data/; anything else there
+# is assumed to be a real export. scripts/check-public-data.mjs additionally
+# refuses to build if codeplug-shaped JSON appears anywhere else in the tree.
+/data/*.json
+!/data/sample-codeplug.json
 *.[cC][sS][vV]
 /local-data/
 /private/
