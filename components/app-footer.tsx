@@ -24,10 +24,7 @@ export function AppFooter() {
           </p>
         </div>
         <p>
-          Made with{' '}
-          <span aria-hidden="true">
-            ❤️
-          </span>{' '}
+          Made with <span aria-hidden="true">❤️</span>{' '}
           <span className="sr-only">love </span>
           by{' '}
           <a className={linkClass} href="https://kj5rmr.com">

@@ -80,6 +80,9 @@ jobs:
       - name: Lint
         run: npm run lint
 
+      - name: Format
+        run: npx oxfmt --check .
+
       - name: Test
         run: npm test
 

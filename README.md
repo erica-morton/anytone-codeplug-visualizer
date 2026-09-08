@@ -9,7 +9,8 @@ codeplug and must not be programmed into a radio.
 
 ## Run locally
 
-Requires Node.js 22.13 or newer.
+Requires Node.js 24 or newer, the version pinned in `.nvmrc` and used by CI.
+With nvm, `nvm use` picks it up.
 
 ```bash
 npm install
@@ -25,6 +26,20 @@ For a production build:
 npm run build
 npm run preview
 ```
+
+## Checks
+
+The same checks run on every pull request and before every deploy.
+
+```bash
+npm run lint       # oxlint, including type-aware rules
+npm run typecheck  # tsc --noEmit
+npm test           # lib logic (node --test) and components (vitest)
+npm run format     # oxfmt, writes changes
+```
+
+`npm run build` additionally refuses to proceed unless the bundled fixture is
+the synthetic data described under Privacy.
 
 ## Load another codeplug
 

@@ -22,12 +22,7 @@
     "typeAware": true,
     "typeCheck": true
   },
-  "ignorePatterns": [
-    "out/**",
-    "build/**",
-    "dist/**",
-    "coverage/**"
-  ],
+  "ignorePatterns": ["out/**", "build/**", "dist/**", "coverage/**"],
   "rules": {
     "no-array-constructor": "error",
     "no-var": "error",
