@@ -3,10 +3,10 @@
   "version": "1.0.5",
   "private": false,
   "engines": {
-    "node": ">=22.13.0"
+    "node": ">=24.0.0"
   },
   "scripts": {
-    "test": "node --experimental-strip-types --test lib/codeplug.test.mjs",
+    "test": "node --test lib/codeplug.test.mjs",
     "dev": "vite",
     "build": "npm run check:public-data && vite build",
     "preview": "vite preview",
@@ -30,7 +30,7 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "4.3.3",
-    "@types/node": "22.19.19",
+    "@types/node": "24.13.3",
     "@types/react": "19.2.18",
     "@types/react-dom": "19.2.7",
     "@vitejs/plugin-react": "6.1.1",
