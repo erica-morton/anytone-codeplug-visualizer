@@ -1,0 +1,17 @@
+#!/bin/sh
+# Refuse to commit personal codeplug data.
+#
+# .gitignore already keeps CSV exports and stray data/*.json out, but an
+# explicit `git add -f`, or a real export saved under an unexpected name, would
+# slip past it. This runs the same sweep the build uses, so a codeplug cannot
+# be committed even by accident.
+#
+# Enable once per clone:   git config core.hooksPath .githooks
+
+output=$(node scripts/check-public-data.mjs 2>&1) || {
+  echo "pre-commit: refusing the commit." >&2
+  # Surface the guard's own reason, not the Node stack trace below it.
+  echo "$output" | grep -E "Refusing to build:" >&2 ||
+    echo "$output" | head -3 >&2
+  exit 1
+}

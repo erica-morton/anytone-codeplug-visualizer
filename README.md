@@ -83,6 +83,20 @@ ignores all CSV files, `.LST`, and `.rdt` files. The
 production build also refuses to proceed unless the bundled data is the
 synthetic `DEMO / 0000000` fixture and every channel is marked synthetic.
 
+Three layers keep a real codeplug out of the repository:
+
+- `data/` accepts only `sample-codeplug.json`; any other JSON there is ignored,
+  as are CSV, `.rdt` and `.LST` exports and everything under `local-data/`.
+- `scripts/check-public-data.mjs` refuses to build if codeplug-shaped JSON
+  appears anywhere outside the sanctioned fixture, so a real export saved under
+  an unexpected name cannot be deployed. It runs on every build and in CI.
+- A pre-commit hook runs that same sweep, so a codeplug cannot be committed
+  even with `git add -f`. Enable it once per clone:
+
+```bash
+git config core.hooksPath .githooks
+```
+
 If you want a JSON copy for local development, write it beneath the ignored
 `local-data/` directory:
 
