@@ -5,7 +5,8 @@ import { fileURLToPath } from 'node:url';
 
 import tailwindcss from '@tailwindcss/postcss';
 import react from '@vitejs/plugin-react';
-import { defineConfig } from 'vite';
+// vitest/config re-exports vite's defineConfig with the `test` block typed.
+import { defineConfig } from 'vitest/config';
 
 const rootDir = path.dirname(fileURLToPath(import.meta.url));
 const { version } = JSON.parse(
@@ -45,5 +46,11 @@ export default defineConfig({
   },
   build: {
     outDir: 'dist',
+  },
+  test: {
+    environment: 'jsdom',
+    setupFiles: ['./vitest.setup.ts'],
+    include: ['components/**/*.test.tsx'],
+    restoreMocks: true,
   },
 });

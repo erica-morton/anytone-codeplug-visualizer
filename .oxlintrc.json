@@ -7,7 +7,8 @@
     "oxc",
     "react",
     "import",
-    "jsx-a11y"
+    "jsx-a11y",
+    "vitest"
   ],
   "categories": {
     "correctness": "error"
