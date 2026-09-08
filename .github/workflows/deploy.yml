@@ -47,7 +47,8 @@ jobs:
           fi
           changed=$(git diff --name-only "$BEFORE" HEAD -- \
             index.html src components lib hooks public data \
-            vite.config.ts tsconfig.json components.json)
+            vite.config.ts tsconfig.json components.json \
+            ':!**/*.test.tsx' ':!**/*.test.mjs' ':!**/__tests__/**')
           if [ -z "$changed" ]; then
             echo "No app files changed; version bump not required."; exit 0
           fi
