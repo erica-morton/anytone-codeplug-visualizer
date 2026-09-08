@@ -2,7 +2,6 @@
 @import 'tw-animate-css';
 @import 'shadcn/tailwind.css';
 
-
 /* Automatic source detection scans the whole project, so any stray file in
    the repo root, and the verbatim-copied public/ pages, leak class candidates
    into the shipped CSS. Name the real sources instead. */
@@ -11,6 +10,10 @@
 @source '../components';
 @source '../lib';
 @source '../hooks';
+/* Test files live beside the components they cover, and Tailwind harvests
+   class candidates from anything it scans -- fixture strings and .filter()
+   calls were reaching the shipped CSS. */
+@source not '../components/**/*.test.tsx';
 
 @custom-variant dark (&:is(.dark *));
 

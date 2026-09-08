@@ -47,10 +47,9 @@ function rowFor(name: string) {
 
 /** The name shown in the detail panel above the table. */
 function currentChannel() {
-  return screen.getByText('Current channel').parentElement?.textContent?.replace(
-    'Current channel',
-    '',
-  );
+  return screen
+    .getByText('Current channel')
+    .parentElement?.textContent?.replace('Current channel', '');
 }
 
 beforeEach(() => {
@@ -123,7 +122,10 @@ test('switching zone moves the selection to that zone first channel', async () =
 
 /** The "N of M shown" line under the channel table. */
 function shownCount() {
-  return screen.getByText(/\d+ of \d+\s*shown/).textContent?.replace(/\s+/g, ' ').trim();
+  return screen
+    .getByText(/\d+ of \d+\s*shown/)
+    .textContent?.replace(/\s+/g, ' ')
+    .trim();
 }
 
 async function openChangesTab(user: ReturnType<typeof userEvent.setup>) {
@@ -168,7 +170,10 @@ test('the mode filter narrows the list and updates the shown count', async () =>
 
 test('searching narrows the channel list', async () => {
   const user = await loadDemo();
-  await user.type(screen.getByRole('textbox', { name: 'Filter channels' }), '2M');
+  await user.type(
+    screen.getByRole('textbox', { name: 'Filter channels' }),
+    '2M',
+  );
 
   expect(channelRows()).toHaveLength(1);
   expect(rowFor('2M-CALL')).toBeInTheDocument();
@@ -183,13 +188,17 @@ test('a change note can be added and removed', async () => {
   );
   await user.click(screen.getByRole('button', { name: /Add change/ }));
 
-  expect(screen.getByRole('tab', { name: /^Changes \(1\)/ })).toBeInTheDocument();
+  expect(
+    screen.getByRole('tab', { name: /^Changes \(1\)/ }),
+  ).toBeInTheDocument();
 
   await openChangesTab(user);
   expect(screen.getByText('Bump the CTCSS tone')).toBeInTheDocument();
 
   await user.click(screen.getByRole('button', { name: 'Remove change' }));
-  expect(screen.getByRole('tab', { name: /^Changes \(0\)/ })).toBeInTheDocument();
+  expect(
+    screen.getByRole('tab', { name: /^Changes \(0\)/ }),
+  ).toBeInTheDocument();
   expect(screen.queryByText('Bump the CTCSS tone')).not.toBeInTheDocument();
 });
 
@@ -252,20 +261,23 @@ test('importing CPS files loads them and labels the source', async () => {
   const user = userEvent.setup({ applyAccept: false });
   render(<CodeplugExplorer />);
 
-  await user.upload(
-    fileInput(),
-    [
-      csv(
-        'Channel.CSV',
-        'No.,Channel Name,Channel Type,Receive Frequency,Scan List\n' +
-          '1,SYNTH-A,A-Analog,146.520,Synth Scan\n' +
-          '2,SYNTH-B,D-Digital,440.100,Synth Scan',
-      ),
-      csv('Zone.CSV', 'No.,Zone Name,Zone Channel Member\n1,SYNTH ZONE,SYNTH-A|SYNTH-B'),
+  await user.upload(fileInput(), [
+    csv(
+      'Channel.CSV',
+      'No.,Channel Name,Channel Type,Receive Frequency,Scan List\n' +
+        '1,SYNTH-A,A-Analog,146.520,Synth Scan\n' +
+        '2,SYNTH-B,D-Digital,440.100,Synth Scan',
+    ),
+    csv(
+      'Zone.CSV',
+      'No.,Zone Name,Zone Channel Member\n1,SYNTH ZONE,SYNTH-A|SYNTH-B',
+    ),
   ]);
 
   expect(await screen.findByText(/Imported CPS tables/)).toBeInTheDocument();
-  expect(screen.getByRole('button', { name: /SYNTH ZONE/ })).toBeInTheDocument();
+  expect(
+    screen.getByRole('button', { name: /SYNTH ZONE/ }),
+  ).toBeInTheDocument();
   expect(rowFor('SYNTH-A')).toBeInTheDocument();
   expect(rowFor('SYNTH-B')).toBeInTheDocument();
   // The parser's mode mapping has to survive the round trip through the UI.

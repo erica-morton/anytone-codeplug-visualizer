@@ -46,7 +46,9 @@ test('unnamed columns fall back to a positional label and empty cells are marked
       ]}
     />,
   );
-  expect(screen.getByRole('columnheader', { name: 'Column 2' })).toBeInTheDocument();
+  expect(
+    screen.getByRole('columnheader', { name: 'Column 2' }),
+  ).toBeInTheDocument();
   // An empty value must be visibly marked, not rendered as a blank cell.
   expect(screen.getByText('(empty)')).toBeInTheDocument();
 });
@@ -133,7 +135,9 @@ test('a settings file is transposed into setting and value pairs', () => {
   );
 
   // Not the raw row layout: one line per setting instead.
-  expect(screen.getByRole('columnheader', { name: 'Setting' })).toBeInTheDocument();
+  expect(
+    screen.getByRole('columnheader', { name: 'Setting' }),
+  ).toBeInTheDocument();
   expect(
     screen.getByRole('columnheader', { name: 'Exported value' }),
   ).toBeInTheDocument();
