@@ -115,3 +115,120 @@ test('switching zone moves the selection to that zone first channel', async () =
   // The list now shows that zone's three channels, not the previous four.
   expect(channelRows()).toHaveLength(3);
 });
+
+/* ---------------------------------------------------------------------------
+ * Phase 2: the rest of the interactive surface -- view toggle, filtering, and
+ * the change-note flow that produces the app's only real output.
+ * ------------------------------------------------------------------------ */
+
+/** The "N of M shown" line under the channel table. */
+function shownCount() {
+  return screen.getByText(/\d+ of \d+\s*shown/).textContent?.replace(/\s+/g, ' ').trim();
+}
+
+async function openChangesTab(user: ReturnType<typeof userEvent.setup>) {
+  await user.click(screen.getByRole('tab', { name: /^Changes \(/ }));
+}
+
+test('the scan set view lists the attached scan list, not the zone', async () => {
+  const user = await loadDemo();
+  // Starts on 00 DEMO: four channels. DEMO-VHF's scan list is Local Scan,
+  // which has two members, so the counts must genuinely differ.
+  expect(channelRows()).toHaveLength(4);
+
+  await user.click(screen.getByRole('button', { name: 'Scan set' }));
+  expect(channelRows().map((r) => r.querySelector('td')?.textContent)).toEqual([
+    expect.stringContaining('DEMO-VHF'),
+    expect.stringContaining('DEMO-UHF'),
+  ]);
+
+  await user.click(screen.getByRole('button', { name: 'Zone' }));
+  expect(channelRows()).toHaveLength(4);
+});
+
+test('the mode filter narrows the list and updates the shown count', async () => {
+  const user = await loadDemo();
+  expect(shownCount()).toBe('4 of 4 shown');
+
+  // Of 00 DEMO's four channels only DMR LOCAL is digital.
+  await user.selectOptions(
+    screen.getByRole('combobox', { name: 'Filter channel mode' }),
+    'DMR',
+  );
+  expect(channelRows()).toHaveLength(1);
+  expect(rowFor('DMR LOCAL')).toBeInTheDocument();
+  expect(shownCount()).toBe('1 of 4 shown');
+
+  await user.selectOptions(
+    screen.getByRole('combobox', { name: 'Filter channel mode' }),
+    'All',
+  );
+  expect(channelRows()).toHaveLength(4);
+});
+
+test('searching narrows the channel list', async () => {
+  const user = await loadDemo();
+  await user.type(screen.getByRole('textbox', { name: 'Filter channels' }), '2M');
+
+  expect(channelRows()).toHaveLength(1);
+  expect(rowFor('2M-CALL')).toBeInTheDocument();
+  expect(shownCount()).toBe('1 of 4 shown');
+});
+
+test('a change note can be added and removed', async () => {
+  const user = await loadDemo();
+  await user.type(
+    screen.getByRole('textbox', { name: 'Describe the change' }),
+    'Bump the CTCSS tone',
+  );
+  await user.click(screen.getByRole('button', { name: /Add change/ }));
+
+  expect(screen.getByRole('tab', { name: /^Changes \(1\)/ })).toBeInTheDocument();
+
+  await openChangesTab(user);
+  expect(screen.getByText('Bump the CTCSS tone')).toBeInTheDocument();
+
+  await user.click(screen.getByRole('button', { name: 'Remove change' }));
+  expect(screen.getByRole('tab', { name: /^Changes \(0\)/ })).toBeInTheDocument();
+  expect(screen.queryByText('Bump the CTCSS tone')).not.toBeInTheDocument();
+});
+
+test('the exported Markdown carries the identity, counts and note context', async () => {
+  const user = await loadDemo();
+  await user.type(
+    screen.getByRole('textbox', { name: 'Describe the change' }),
+    'Retune the repeater offset',
+  );
+  await user.click(screen.getByRole('button', { name: /Add change/ }));
+  await openChangesTab(user);
+  await user.click(screen.getByRole('button', { name: 'Copy' }));
+
+  const markdown = await navigator.clipboard.readText();
+  expect(markdown).toContain('# AnyTone codeplug change request');
+  expect(markdown).toContain('Identity: DEMO / DMR ID 0000000');
+  expect(markdown).toContain('Counts: 8 channels, 5 zones, 3 scan lists');
+  expect(markdown).toContain('1. Retune the repeater offset');
+  // A channel-scoped note pins all three coordinates.
+  expect(markdown).toContain(
+    'Scope: channel | Zone: 00 DEMO | Channel: DEMO-VHF',
+  );
+});
+
+test('a zone-scoped note records the zone and omits the channel', async () => {
+  const user = await loadDemo();
+  await user.selectOptions(
+    screen.getByRole('combobox', { name: 'Change scope' }),
+    'zone',
+  );
+  await user.type(
+    screen.getByRole('textbox', { name: 'Describe the change' }),
+    'Reorder this zone',
+  );
+  await user.click(screen.getByRole('button', { name: /Add change/ }));
+  await openChangesTab(user);
+  await user.click(screen.getByRole('button', { name: 'Copy' }));
+
+  const markdown = await navigator.clipboard.readText();
+  expect(markdown).toContain('Scope: zone | Zone: 00 DEMO');
+  expect(markdown).not.toContain('Channel: DEMO-VHF');
+});
