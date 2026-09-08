@@ -1153,6 +1153,13 @@ function ChannelTable({
           <TableRow
             key={channel.name}
             data-state={channel.name === selected ? 'selected' : undefined}
+            // The whole row is the click target. The row already paints a
+            // full-width selected state, so limiting the hit area to the name
+            // button made every other column look selectable but do nothing.
+            // The button below stays for keyboard and screen-reader users; it
+            // re-selects the same channel, which is a no-op.
+            onClick={() => onSelect(channel.name)}
+            className="cursor-pointer"
           >
             <TableCell>
               <Button
